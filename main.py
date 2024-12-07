@@ -166,7 +166,6 @@ class Widget(QWidget):
         self.dest = name
         self.destname = QLabel(str(self.dest), self.destarea)
         self.destarea.setWidget(self.destname)
-        print(self.dest)
 
     def name_pushed(self):
         self.name = self.insert_name.text()

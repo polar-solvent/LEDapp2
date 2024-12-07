@@ -20,7 +20,7 @@ import re
 # # parserのtype=boolはだめらしいのでなんとかした(-u, -r)
 
 def main(input_path, upright=False, reverse=False, arrange=0, width=None, height=None, interval=1, dest="./assets/dest", name="frame"):
-    print("1")
+
     # if width is not None and width < 1:
     #     print("enter width more than 0")
     #     sys.exit(1)
@@ -51,7 +51,6 @@ def main(input_path, upright=False, reverse=False, arrange=0, width=None, height
     #     print(e)
     #     sys.exit(1)
 
-    print("2")
 
     if upright:
         if width == 0:
@@ -115,7 +114,6 @@ def main(input_path, upright=False, reverse=False, arrange=0, width=None, height
         if interval > frame_width:
             print("enter interval less than width")
             sys.exit(1)
-        print("3")
         img = np.zeros((max(h),2*frame_width+sum(w),3),dtype=np.uint8)
         if arrange == 0:
             for i, image in enumerate(import_imgs):
@@ -147,7 +145,6 @@ def main(input_path, upright=False, reverse=False, arrange=0, width=None, height
                 img = img[max(h)-frame_height:,:,:]
             else:
                 img = np.vstack([np.zeros((frame_height-max(h),2*frame_width+sum(w),3),dtype=np.uint8), img])
-        print("4")
         start, i = 0, 0
         if reverse: start, interval = sum(w)+frame_width-1, -interval
         while start <= sum(w) + frame_width and start >= 0:
@@ -155,8 +152,6 @@ def main(input_path, upright=False, reverse=False, arrange=0, width=None, height
             cv2.imwrite(f"{dest}/{name}_{i}.bmp",currentframe)
             start += interval
             i += 1
-        print("5")
-        print(f"{dest}/{name}_.bmp")
 
 if __name__ == "__main__":
     main()
