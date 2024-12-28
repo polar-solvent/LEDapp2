@@ -1,5 +1,9 @@
 import sys
-from making import main
+import shutil
+import re
+import math
+from making import main as make, shape
+from showing import main as show
 from PyQt6.QtWidgets import QApplication,QWidget,QLineEdit,QMessageBox,QSpinBox,QDialog,QComboBox,QScrollArea,QSizePolicy,QHBoxLayout,QVBoxLayout,QPushButton,QCheckBox,QFileDialog,QLabel,QInputDialog
 from PyQt6.QtCore import Qt
 
@@ -14,12 +18,14 @@ class Widget(QWidget):
         self.interval = 1
         self.dest = "./assets/dest"
         self.name = "frame"
+        self.widths = 0
+        self.heights = 0
 
         super().__init__()
         
         self.setStyleSheet('font-family: "Noto Sans CJK JP"; font-size: 22px')
-        self.setGeometry(10,10,400,225)
-        self.setWindowTitle("QScrollAreaは解決")
+        self.setGeometry(10,10,400,1000)
+        self.setWindowTitle("LEDapp")
 
         vbl = QVBoxLayout()
         self.setLayout(vbl)
@@ -37,7 +43,7 @@ class Widget(QWidget):
 
         self.comboboxar = QComboBox()
         hbl1.addWidget(self.comboboxar)
-        self.arranges = ["上ぞろえ", "中央ぞろえ", "下ぞろえ"]
+        self.arranges = ["上(左)ぞろえ", "中央ぞろえ", "下(右)ぞろえ"]
         for line in self.arranges:
             self.comboboxar.addItem(line)
         self.combotest = QLabel("")
@@ -64,6 +70,13 @@ class Widget(QWidget):
         button_file.clicked.connect(self.file)
         hbl2.addWidget(button_file)
 
+        hbl2_5 = QHBoxLayout()
+        vbl.addLayout(hbl2_5)
+
+        button_show = QPushButton("作成される画像群を閲覧",self)
+        button_show.clicked.connect(self.simulate)
+        hbl2_5.addWidget(button_show)
+
         hbl3 = QHBoxLayout()
         vbl.addLayout(hbl3)
 
@@ -85,16 +98,33 @@ class Widget(QWidget):
         hbl4.addWidget(name_string)
         hbl4.addWidget(self.insert_name)
 
-        button_run = QPushButton("生成",self)
+        button_run = QPushButton("画像群の保存",self)
         button_run.clicked.connect(self.run)
         hbl4.addWidget(button_run)
 
-    def change(self):
-        self.upright = self.boxup.isChecked()
-        self.reverse = self.boxre.isChecked()
-        self.arrange = self.comboboxar.currentIndex()
+        button_save = QPushButton("動画として保存",self)
+        button_save.clicked.connect(self.save)
+        hbl4.addWidget(button_save)
 
-    
+    def change(self):
+        if self.boxup.isChecked() == 0 and (self.img_width == 0 or self.img_width>=self.interval) or self.boxup.isChecked() == 1 and (self.img_height == 0 or self.img_height>=self.interval):
+            self.upright = self.boxup.isChecked()
+            self.reverse = self.boxre.isChecked()
+            self.arrange = self.comboboxar.currentIndex()
+            if self.upright == 0:
+                self.img_height = max(self.heights)
+                self.img_width = sum(self.widths)
+            else:
+                self.img_height = sum(self.heights)
+                self.img_width = max(self.widths)
+            self.sizes.setText(f"横幅:{self.img_width}, 縦幅:{self.img_height}, 間隔:{self.interval}")
+
+        elif self.boxup.isChecked() == 0:
+            QMessageBox.critical(self,"","間隔が横幅を超過しています！")
+            self.boxup.setCheckState(Qt.CheckState.Checked)
+        elif self.boxup.isChecked() == 1:
+            QMessageBox.critical(self,"","間隔が縦幅を超過しています！")
+            self.boxup.setCheckState(Qt.CheckState.Unchecked)
 
     def insert_number(self):
         self.inum_d = QDialog()
@@ -110,8 +140,8 @@ class Widget(QWidget):
         self.spinhe.setValue(self.img_height)
         self.spinin.setValue(self.interval)
         
-        self.labelwi = QLabel(f"縦幅:{self.img_width} → ")
-        self.labelhe  = QLabel(f"横幅:{self.img_height} → ")
+        self.labelwi = QLabel(f"横幅:{self.img_width} → ")
+        self.labelhe  = QLabel(f"縦幅:{self.img_height} → ")
         self.labelin = QLabel(f"間隔:{self.interval} → ")
 
         vbli = QVBoxLayout()
@@ -143,23 +173,47 @@ class Widget(QWidget):
         self.inum_d.exec()
 
     def check_wi(self):
-        if self.spinwi.value()==0 or self.spinin.value() <= self.spinwi.value():
+        if self.upright == 0 and (self.spinwi.value()==0 or self.spinin.value() <= self.spinwi.value()):
             self.img_width = self.spinwi.value()
             self.img_height = self.spinhe.value()
             self.interval = self.spinin.value()
             self.inum_d.close()
             self.sizes.setText(f"横幅:{self.img_width}, 縦幅:{self.img_height}, 間隔:{self.interval}")
-        else:
+        elif self.upright == 1 and (self.spinhe.value()==0 or self.spinin.value() <= self.spinhe.value()):
+            self.img_width = self.spinwi.value()
+            self.img_height = self.spinhe.value()
+            self.interval = self.spinin.value()
+            self.inum_d.close()
+            self.sizes.setText(f"横幅:{self.img_width}, 縦幅:{self.img_height}, 間隔:{self.interval}")
+        elif self.upright == 0:
             QMessageBox.critical(self.inum_d,"","間隔が横幅を超過しています！")
             self.spinin.setValue(self.spinwi.value())
+        elif self.upright == 1:
+            QMessageBox.critical(self.inum_d,"","間隔が縦幅を超過しています！")
+            self.spinin.setValue(self.spinhe.value())
         
 
     def file(self):
         name,ok = QFileDialog.getOpenFileNames(self)
         if(ok):
-            self.input_path = name
-            self.filename = QLabel(", ".join(name), self.filearea)
-            self.filearea.setWidget(self.filename)
+            if shape(name) == 1:
+                QMessageBox.critical(self,"","画像形式のファイルを選択してください！")
+            else:
+                h,w,c = shape(name)
+                self.widths = w
+                self.heights = h
+                if self.upright == 0:
+                    self.img_height = max(h)
+                    self.img_width = sum(w)
+                else:
+                    self.img_height = sum(h)
+                    self.img_width = max(w)
+                self.interval = 1
+                self.sizes.setText(f"横幅:{self.img_width}, 縦幅:{self.img_height}, 間隔:{self.interval}")
+
+                self.input_path = name
+                self.filename = QLabel(", ".join(name), self.filearea)
+                self.filearea.setWidget(self.filename)
 
     def choose_dest(self):
         name = QFileDialog.getExistingDirectory(self,"保存ディレクトリ")
@@ -170,9 +224,30 @@ class Widget(QWidget):
     def name_pushed(self):
         self.name = self.insert_name.text()
 
+    def simulate(self):
+        if self.input_path!=[]:
+            make(self.input_path,self.upright,self.reverse,self.arrange,self.img_width,self.img_height,self.interval,"./.temp")
+        else:
+            QMessageBox.critical(self,"","画像を選択してください！")
+            return
+        if self.upright:
+            speed = (self.img_height+sum(self.heights))//self.interval
+        else:
+            speed = (self.img_width+sum(self.widths))//self.interval
+        show("./.temp/frame_0.bmp", math.ceil(speed/2))
+        shutil.rmtree("./.temp/")
+
     def run(self):
-        main(self.input_path,self.upright,self.reverse,self.arrange,self.img_width,self.img_height,self.interval,self.dest,self.name)
-        QMessageBox.information(self,"","生成が終了しました！")
+        if self.input_path!=[]:
+            make(self.input_path,self.upright,self.reverse,self.arrange,self.img_width,self.img_height,self.interval,"./.temp")
+        else:
+            QMessageBox.critical(self,"","画像を選択してください！")
+            return
+        if not re.fullmatch(r"[-\w]+", self.name):
+            QMessageBox.critical(self,"","保存名は英数字、'-'、'_'のみが使えます！")
+        else:
+            make(self.input_path,self.upright,self.reverse,self.arrange,self.img_width,self.img_height,self.interval,self.dest,self.name)
+            QMessageBox.information(self,"","保存が終了しました！")
         # main(self.input_path, self.upright, self.reverse, self.arrange, self.width, self.height, self.interval, self.dest, self.name)
             
 
@@ -181,6 +256,21 @@ class Widget(QWidget):
         #     self.setWindowTitle(title)
         # else:
         #     self.windowTitle("ウィンドウ")
+
+    def save(self):
+        if self.input_path!=[]:
+            make(self.input_path,self.upright,self.reverse,self.arrange,self.img_width,self.img_height,self.interval,"./.temp")
+        else:
+            QMessageBox.critical(self,"","画像を選択してください！")
+            return
+        if not re.fullmatch(r"[-\w]+\.(mp4|gif)", self.name):
+            QMessageBox.critical(self,"","保存名は英数字、'-'、'_'のみが使え、\n動画の保存には拡張子'mp4'または'gif'が必要です！")
+        else:
+            make(self.input_path,self.upright,self.reverse,self.arrange,self.img_width,self.img_height,self.interval,"./.temp")
+            show("./.temp/frame_0.bmp",60,f"{self.dest}/{self.name}")
+            shutil.rmtree("./.temp/")
+            QMessageBox.information(self,"","保存が終了しました！")
+
 
 qAp = QApplication(sys.argv)
 wid = Widget()

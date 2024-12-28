@@ -1,4 +1,4 @@
-import argparse
+# import argparse
 import cv2
 import numpy as np
 import sys
@@ -19,6 +19,15 @@ import re
 
 # # parserのtype=boolはだめらしいのでなんとかした(-u, -r)
 
+def shape(input_path):
+    import_imgs = [cv2.imread(i) for i in input_path]
+    if any(e is None for e in import_imgs):
+        print('not correct path of image')
+        return 1
+
+    img_shape = np.array([i.shape for i in import_imgs]) #動いた。縦だけデータ取る
+    return img_shape[:,0], img_shape[:,1], img_shape[:,2]
+
 def main(input_path, upright=False, reverse=False, arrange=0, width=None, height=None, interval=1, dest="./assets/dest", name="frame"):
 
     # if width is not None and width < 1:
@@ -37,19 +46,24 @@ def main(input_path, upright=False, reverse=False, arrange=0, width=None, height
         print("enter valid file name")
         sys.exit(1)
 
-    import_imgs = [cv2.imread(i) for i in input_path]
-    if any(e is None for e in import_imgs):
-        print('not correct path of image')
+    if shape(input_path) == 1:
         sys.exit(1)
+    else:
+        h,w,c = shape(input_path)
 
-    img_shape = np.array([i.shape for i in import_imgs]) #動いた。縦だけデータ取る
-    h,w,c = img_shape[:,0], img_shape[:,1], img_shape[:,2]
-
-    # try :
-    #     os.makedirs(dest, exist_ok=True)
-    # except Exception as e:
-    #     print(e)
+    import_imgs = [cv2.imread(i) for i in input_path]
+    # if any(e is None for e in import_imgs):
+    #     print('not correct path of image')
     #     sys.exit(1)
+
+    # img_shape = np.array([i.shape for i in import_imgs]) #動いた。縦だけデータ取る
+    # h,w,c = img_shape[:,0], img_shape[:,1], img_shape[:,2]
+
+    try :
+        os.makedirs(dest, exist_ok=True)
+    except Exception as e:
+        print(e)
+        sys.exit(1)
 
 
     if upright:

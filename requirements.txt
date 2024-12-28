@@ -1,0 +1,13 @@
+decorator==5.1.1
+imageio==2.36.1
+imageio-ffmpeg==0.5.1
+moviepy==2.1.1
+numpy==2.1.3
+opencv-python==4.10.0.84
+pillow==10.4.0
+proglog==0.1.10
+PyQt6==6.7.1
+PyQt6-Qt6==6.7.3
+PyQt6_sip==13.9.0
+python-dotenv==1.0.1
+setuptools==75.6.0
