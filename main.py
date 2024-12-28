@@ -24,7 +24,7 @@ class Widget(QWidget):
         super().__init__()
         
         self.setStyleSheet('font-family: "Noto Sans CJK JP"; font-size: 22px')
-        self.setGeometry(10,10,400,1000)
+        self.setGeometry(10,10,400,225)
         self.setWindowTitle("LEDapp")
 
         vbl = QVBoxLayout()
@@ -234,7 +234,10 @@ class Widget(QWidget):
             speed = (self.img_height+sum(self.heights))//self.interval
         else:
             speed = (self.img_width+sum(self.widths))//self.interval
-        show("./.temp/frame_0.bmp", math.ceil(speed/2))
+        if speed > 0xFFFF:
+            QMessageBox.critical(self,"","画像の横幅を小さくするか、間隔を大きくしてください！")
+        else:
+            show("./.temp/frame_0.bmp", math.ceil(speed/2))
         shutil.rmtree("./.temp/")
 
     def run(self):
@@ -266,10 +269,38 @@ class Widget(QWidget):
         if not re.fullmatch(r"[-\w]+\.(mp4|gif)", self.name):
             QMessageBox.critical(self,"","保存名は英数字、'-'、'_'のみが使え、\n動画の保存には拡張子'mp4'または'gif'が必要です！")
         else:
+            self.speed()
             make(self.input_path,self.upright,self.reverse,self.arrange,self.img_width,self.img_height,self.interval,"./.temp")
-            show("./.temp/frame_0.bmp",60,f"{self.dest}/{self.name}")
+            show("./.temp/frame_0.bmp",self.spinsp.value(),f"{self.dest}/{self.name}")
             shutil.rmtree("./.temp/")
             QMessageBox.information(self,"","保存が終了しました！")
+
+    def speed(self):
+        self.spd = QDialog()
+        self.spd.setWindowTitle("1秒あたりに写す画像数の入力")
+        self.spd.setStyleSheet('font-family: "Noto Sans CJK JP"; font-size: 22px')
+        self.spd.setWindowModality(Qt.WindowModality.ApplicationModal)
+        self.labelsp = QLabel("1秒あたりに写す画像数:")
+        self.spinsp = QSpinBox()
+        self.spinsp.setRange(1,0xFFFF)
+        self.spinsp.setSingleStep(1)
+        self.spinsp.setValue(60)
+        vbls = QVBoxLayout()
+        hbls1 = QHBoxLayout()
+        self.spd.setLayout(vbls)
+        vbls.addLayout(hbls1)
+        hbls1.addWidget(self.labelsp)
+        hbls1.addWidget(self.spinsp)
+
+        self.finish_button = QPushButton("入力完了",self.spd)
+        self.finish_button.clicked.connect(self.spd.close)
+        hbls2 = QHBoxLayout()
+        vbls.addLayout(hbls2)
+        hbls2.addWidget(self.finish_button)
+
+        self.spd.exec()
+
+        
 
 
 qAp = QApplication(sys.argv)

@@ -19,8 +19,8 @@ def main(input_path, speed=60, dest=""):
         print("enter frame rate more than 0")
         sys.exit(1)
 
-    elif speed > 1000:
-        print("enter frame rate less than 1000")
+    elif speed > 0xFFFF:
+        print("enter frame rate less than 0xFFFF")
         sys.exit(1)
 
     dir_path, frame_name_original= os.path.split(input_path)
