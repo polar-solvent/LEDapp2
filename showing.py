@@ -3,7 +3,6 @@ import sys
 import os
 import re
 import cv2
-import shutil
 from moviepy import VideoFileClip
 
 # parser = argparse.ArgumentParser(description="画像群を読み込み、末尾の数字の順番通りに一定の速さで表示する。qを押すと終了する。")
@@ -52,8 +51,7 @@ def main(input_path, speed=60, dest=""):
 
     frames = [cv2.imread(rf"{dir_path}/{f}") for f in frames_name_sorted]
 
-    wait_ms = 1000//speed
-
+    wait_ms = int(1000//speed)
     for f in frames:
         cv2.imshow("image", f)
 
@@ -96,8 +94,8 @@ def main(input_path, speed=60, dest=""):
 
             if ext == ".gif":
                 clip = VideoFileClip(f"{name}.mp4")
-                clip.write_gif(f"{name}.gif", fps=30, program="ffmpeg")
-                shutil.rmtree(f"./{des_path}")
+                clip.write_gif(f"{name}.gif", fps=30)
+                os.remove(f"{name}.mp4")
 
 if __name__ == "__main__":
     main()

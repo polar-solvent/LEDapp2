@@ -4,7 +4,7 @@ import re
 import math
 from making import main as make, shape
 from showing import main as show
-from PyQt6.QtWidgets import QApplication,QWidget,QLineEdit,QMessageBox,QSpinBox,QDialog,QComboBox,QScrollArea,QSizePolicy,QHBoxLayout,QVBoxLayout,QPushButton,QCheckBox,QFileDialog,QLabel,QInputDialog
+from PyQt6.QtWidgets import QApplication,QAbstractButton,QButtonGroup,QRadioButton,QDoubleSpinBox,QWidget,QLineEdit,QMessageBox,QSpinBox,QDialog,QComboBox,QScrollArea,QSizePolicy,QHBoxLayout,QVBoxLayout,QPushButton,QCheckBox,QFileDialog,QLabel,QInputDialog
 from PyQt6.QtCore import Qt
 
 class Widget(QWidget):
@@ -269,36 +269,79 @@ class Widget(QWidget):
         if not re.fullmatch(r"[-\w]+\.(mp4|gif)", self.name):
             QMessageBox.critical(self,"","保存名は英数字、'-'、'_'のみが使え、\n動画の保存には拡張子'mp4'または'gif'が必要です！")
         else:
-            self.speed()
-            make(self.input_path,self.upright,self.reverse,self.arrange,self.img_width,self.img_height,self.interval,"./.temp")
-            show("./.temp/frame_0.bmp",self.spinsp.value(),f"{self.dest}/{self.name}")
-            shutil.rmtree("./.temp/")
-            QMessageBox.information(self,"","保存が終了しました！")
+            self.speed = 60
+            result = self.set_speed()
+            if result == QDialog.DialogCode.Accepted:
+                make(self.input_path,self.upright,self.reverse,self.arrange,self.img_width,self.img_height,self.interval,"./.temp")
+                show("./.temp/frame_0.bmp",self.speed,f"{self.dest}/{self.name}")
+                shutil.rmtree("./.temp/")
+                QMessageBox.information(self,"","保存が終了しました！")
+            else:
+                shutil.rmtree("./.temp/")
 
-    def speed(self):
+    def set_speed(self):
         self.spd = QDialog()
-        self.spd.setWindowTitle("1秒あたりに写す画像数の入力")
+        self.spd.setWindowTitle("画像を写す速さの入力")
         self.spd.setStyleSheet('font-family: "Noto Sans CJK JP"; font-size: 22px')
         self.spd.setWindowModality(Qt.WindowModality.ApplicationModal)
-        self.labelsp = QLabel("1秒あたりに写す画像数:")
+        
+        self.choice = QButtonGroup()
+        self.buttonsp = QRadioButton("1秒あたりに写す画像数:")
+        self.buttonsp.setChecked(1)
+        self.buttonse = QRadioButton("画像を写す秒数:")
+        self.choice.addButton(self.buttonsp)
+        self.choice.addButton(self.buttonse)
+        self.choice.buttonClicked.connect(self.choose_speed)
+
         self.spinsp = QSpinBox()
-        self.spinsp.setRange(1,0xFFFF)
+        self.spinsp.setRange(1,0xFF)
         self.spinsp.setSingleStep(1)
         self.spinsp.setValue(60)
+        self.spinsp.valueChanged.connect(self.choose_speed)
         vbls = QVBoxLayout()
         hbls1 = QHBoxLayout()
         self.spd.setLayout(vbls)
         vbls.addLayout(hbls1)
-        hbls1.addWidget(self.labelsp)
+        hbls1.addWidget(self.buttonsp)
         hbls1.addWidget(self.spinsp)
 
-        self.finish_button = QPushButton("入力完了",self.spd)
-        self.finish_button.clicked.connect(self.spd.close)
+        self.spinse = QDoubleSpinBox()
+        self.spinse.setDecimals(2)
+        self.spinse.setRange(0.01,0xFF)
+        self.spinse.setValue(2.00)
+        self.spinse.setSingleStep(0.01)
+        self.spinse.valueChanged.connect(self.choose_speed)
         hbls2 = QHBoxLayout()
         vbls.addLayout(hbls2)
-        hbls2.addWidget(self.finish_button)
+        hbls2.addWidget(self.buttonse)
+        hbls2.addWidget(self.spinse)
 
-        self.spd.exec()
+        self.cancel_button = QPushButton("キャンセル",self.spd)
+        self.cancel_button.clicked.connect(self.spd.reject)
+        self.finish_button = QPushButton("入力完了",self.spd)
+        self.finish_button.clicked.connect(self.spd.accept)
+        hbls3 = QHBoxLayout()
+        vbls.addLayout(hbls3)
+        hbls3.addWidget(self.cancel_button)
+        hbls3.addWidget(self.finish_button)
+
+        return self.spd.exec()
+    
+    def choose_speed(self):
+        button = self.choice.checkedButton()
+        if(button.text()=="1秒あたりに写す画像数:"):
+            self.speed = self.spinsp.value()
+        elif(button.text()=="画像を写す秒数:"):
+            if self.upright:
+                self.speed = (self.img_height+sum(self.heights))//self.spinse.value()
+            else:
+                self.speed = (self.img_width+sum(self.widths))//self.spinse.value()
+            if self.speed <1 or self.speed > 0xFF:
+                QMessageBox.critical(self.spd,"","画像の表示数が範囲外です！")
+                self.speed = self.spinsp.value()
+                self.buttonse.setChecked(0)
+                self.buttonsp.setChecked(1)
+            
 
         
 
