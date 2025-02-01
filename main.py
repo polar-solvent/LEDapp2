@@ -4,11 +4,17 @@ import re
 import math
 from making import main as make, shape
 from showing import main as show
-from PyQt6.QtWidgets import QApplication,QAbstractButton,QButtonGroup,QRadioButton,QDoubleSpinBox,QWidget,QLineEdit,QMessageBox,QSpinBox,QDialog,QComboBox,QScrollArea,QSizePolicy,QHBoxLayout,QVBoxLayout,QPushButton,QCheckBox,QFileDialog,QLabel,QInputDialog
+from PyQt6.QtWidgets import QApplication,QButtonGroup,QRadioButton,QDoubleSpinBox,QWidget,QLineEdit,QMessageBox,QSpinBox,QDialog,QComboBox,QScrollArea,QSizePolicy,QHBoxLayout,QVBoxLayout,QPushButton,QCheckBox,QFileDialog,QLabel,QInputDialog
 from PyQt6.QtCore import Qt
 
 class Widget(QWidget):
     def __init__(self):
+        super().__init__()
+        self.init_value()
+        self.init_ui()
+        
+
+    def init_value(self):
         self.input_path = []
         self.upright = False
         self.reverse = False
@@ -18,11 +24,12 @@ class Widget(QWidget):
         self.interval = 1
         self.dest = "./assets/dest"
         self.name = "frame"
-        self.widths = 0
-        self.heights = 0
+        self.widths = [0]
+        self.heights = [0]
 
         super().__init__()
         
+    def init_ui(self):
         self.setStyleSheet('font-family: "Noto Sans CJK JP"; font-size: 22px')
         self.setGeometry(10,10,400,225)
         self.setWindowTitle("LEDapp")
@@ -34,10 +41,12 @@ class Widget(QWidget):
         vbl.addLayout(hbl1)
 
         self.boxup = QCheckBox("upright", self)
+        self.boxup.setChecked(0)
         hbl1.addWidget(self.boxup)
         self.boxup.toggled.connect(self.change)
 
         self.boxre = QCheckBox("reverse", self)
+        self.boxre.setChecked(0)
         hbl1.addWidget(self.boxre)
         self.boxre.toggled.connect(self.change)
 
@@ -46,10 +55,8 @@ class Widget(QWidget):
         self.arranges = ["上(左)ぞろえ", "中央ぞろえ", "下(右)ぞろえ"]
         for line in self.arranges:
             self.comboboxar.addItem(line)
-        self.combotest = QLabel("")
         self.comboboxar.currentTextChanged.connect(self.change)
         self.comboboxar.setCurrentIndex(0)
-        hbl1.addWidget(self.combotest)
 
         self.sizes = QLabel(f"横幅:{self.img_width}, 縦幅:{self.img_height}, 間隔:{self.interval}")
         hbl1.addWidget(self.sizes)
@@ -105,6 +112,18 @@ class Widget(QWidget):
         button_save = QPushButton("動画として保存",self)
         button_save.clicked.connect(self.save)
         hbl4.addWidget(button_save)
+
+        #ここに初期設定btnと終了btn
+        hbl5 = QHBoxLayout()
+        vbl.addLayout(hbl5)
+
+        button_reset = QPushButton("初期設定に戻す",self)
+        button_reset.clicked.connect(self.reset)
+        hbl5.addWidget(button_reset)
+
+        button_fin = QPushButton("終了",self)
+        button_fin.clicked.connect(self.close)
+        hbl5.addWidget(button_fin)
 
     def change(self):
         if self.boxup.isChecked() == 0 and (self.img_width == 0 or self.img_width>=self.interval) or self.boxup.isChecked() == 1 and (self.img_height == 0 or self.img_height>=self.interval):
@@ -341,10 +360,18 @@ class Widget(QWidget):
                 self.speed = self.spinsp.value()
                 self.buttonse.setChecked(0)
                 self.buttonsp.setChecked(1)
-            
 
-        
+    def reset(self):
+        if self.close():
+            self.new = Widget()
+            self.new.show()
 
+    def closeEvent(self, e):
+        ok = QMessageBox.question(self,"","ウィンドウを閉じてもいいですか？\n入力した内容は保存されません。")
+        if ok == QMessageBox.StandardButton.Yes:
+            e.accept()
+        else:
+            e.ignore()
 
 qAp = QApplication(sys.argv)
 wid = Widget()
