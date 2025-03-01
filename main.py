@@ -2,10 +2,13 @@ import sys
 import shutil
 import re
 import math
+import time
+import os
 from making import main as make, shape
 from showing import main as show
 from PyQt6.QtWidgets import QApplication,QButtonGroup,QRadioButton,QDoubleSpinBox,QWidget,QLineEdit,QMessageBox,QSpinBox,QDialog,QComboBox,QScrollArea,QSizePolicy,QHBoxLayout,QVBoxLayout,QPushButton,QCheckBox,QFileDialog,QLabel,QInputDialog
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt,QThread,pyqtSignal
+from PyQt6.QtGui import QPixmap
 
 class Widget(QWidget):
     def __init__(self):
@@ -83,6 +86,10 @@ class Widget(QWidget):
         button_show = QPushButton("作成される画像群を閲覧",self)
         button_show.clicked.connect(self.simulate)
         hbl2_5.addWidget(button_show)
+
+        button_simulate = QPushButton("PyQt上で画像群を閲覧",self)
+        button_simulate.clicked.connect(self.simulate2)
+        hbl2_5.addWidget(button_simulate)
 
         hbl3 = QHBoxLayout()
         vbl.addLayout(hbl3)
@@ -236,9 +243,10 @@ class Widget(QWidget):
 
     def choose_dest(self):
         name = QFileDialog.getExistingDirectory(self,"保存ディレクトリ")
-        self.dest = name
-        self.destname = QLabel(str(self.dest), self.destarea)
-        self.destarea.setWidget(self.destname)
+        if name != "":
+            self.dest = name
+            self.destname = QLabel(str(self.dest), self.destarea)
+            self.destarea.setWidget(self.destname)
 
     def name_pushed(self):
         self.name = self.insert_name.text()
@@ -259,10 +267,70 @@ class Widget(QWidget):
             show("./.temp/frame_0.bmp", math.ceil(speed/2))
         shutil.rmtree("./.temp/")
 
-    def run(self):
+    def simulate2(self):
         if self.input_path!=[]:
             make(self.input_path,self.upright,self.reverse,self.arrange,self.img_width,self.img_height,self.interval,"./.temp")
         else:
+            QMessageBox.critical(self,"","画像を選択してください！")
+            return
+        if self.upright:
+            speed = (self.img_height+sum(self.heights))//self.interval
+        else:
+            speed = (self.img_width+sum(self.widths))//self.interval
+        if speed > 0xFFFF:
+            QMessageBox.critical(self,"","画像の横幅を小さくするか、間隔を大きくしてください！")
+        else:
+            self.framesec = 2/speed
+            self.simulation = QDialog()
+            self.simulation.setWindowTitle("simulation")
+            self.simulation.setStyleSheet('font-family: "Noto Sans CJK JP"; font-size: 22px')
+            self.simulation.setWindowModality(Qt.WindowModality.ApplicationModal)
+
+            vblsim = QVBoxLayout()
+            self.simulation.setLayout(vblsim)
+
+            self.label = QLabel("ここに画像が表示されます", self.simulation)
+            vblsim.addWidget(self.label)
+            self.sbtn = QPushButton("start",self.simulation)
+            vblsim.addWidget(self.sbtn)
+            self.sbtn.clicked.connect(self.start_simulation2)
+            self.qbtn = QPushButton("quit",self.simulation)
+            self.qbtn.clicked.connect(self.quit_simulation2)
+            vblsim.addWidget(self.qbtn)
+            self.qbtn.setEnabled(0)
+            self.simulation_thread = None
+            self.simulation.exec()
+        self.quit_simulation2()
+        shutil.rmtree("./.temp/")
+
+    def start_simulation2(self): 
+        self.sbtn.setEnabled(0)
+        self.sbtn.setText("undergoing")
+        self.qbtn.setEnabled(1)
+        if self.simulation_thread is None or not self.simulation_thread.isRunning(): 
+            self.simulation_thread = SimulationThread(self.framesec)
+            self.simulation_thread.start()
+            self.simulation_thread.simupdate.connect(self.undergosim2)
+            self.simulation_thread.simdone.connect(self.finishsim2)
+
+    def undergosim2(self, image):
+        self.label.setPixmap(image)
+        QApplication.processEvents()
+        
+    def finishsim2(self):
+        self.sbtn.setEnabled(1)
+        self.sbtn.setText("start")
+        self.qbtn.setEnabled(0)
+
+    def quit_simulation2(self):
+        if self.simulation_thread is not None and self.simulation_thread.isRunning():
+            self.simulation_thread.stop()
+            self.simulation_thread.wait()
+            self.simulation_thread = None
+        self.finishsim2()
+
+    def run(self):
+        if self.input_path==[]:
             QMessageBox.critical(self,"","画像を選択してください！")
             return
         if not re.fullmatch(r"[-\w]+", self.name):
@@ -280,9 +348,7 @@ class Widget(QWidget):
         #     self.windowTitle("ウィンドウ")
 
     def save(self):
-        if self.input_path!=[]:
-            make(self.input_path,self.upright,self.reverse,self.arrange,self.img_width,self.img_height,self.interval,"./.temp")
-        else:
+        if self.input_path==[]:
             QMessageBox.critical(self,"","画像を選択してください！")
             return
         if not re.fullmatch(r"[-\w]+\.(mp4|gif)", self.name):
@@ -295,8 +361,6 @@ class Widget(QWidget):
                 show("./.temp/frame_0.bmp",self.speed,f"{self.dest}/{self.name}")
                 shutil.rmtree("./.temp/")
                 QMessageBox.information(self,"","保存が終了しました！")
-            else:
-                shutil.rmtree("./.temp/")
 
     def set_speed(self):
         self.spd = QDialog()
@@ -372,6 +436,35 @@ class Widget(QWidget):
             e.accept()
         else:
             e.ignore()
+
+class SimulationThread(QThread):
+    simdone = pyqtSignal()
+    simupdate = pyqtSignal("QPixmap")
+    
+    def __init__(self, framesec):
+        super().__init__()
+        self.running = True
+        self.speed = framesec
+
+    def run(self):
+        def sort_frame(f:str):
+            m = re.match(r"frame_(\d+)\.bmp", f)
+            return int(m.group(1))
+
+        frames_name = sorted([f for f in os.listdir("./.temp")], key=sort_frame)
+        
+        for f in frames_name:
+            if not self.running:
+                break
+            time.sleep(self.speed)
+            pix = QPixmap(f"./.temp/{f}")
+            pix = pix.scaledToHeight(64)
+            self.simupdate.emit(pix)
+        self.simdone.emit()
+    
+    def stop(self):
+        self.running = False
+
 
 qAp = QApplication(sys.argv)
 wid = Widget()

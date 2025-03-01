@@ -33,23 +33,24 @@ def main(input_path, speed=60, dest=""):
     def is_frame(f:str):
         return re.match(rf"{frame_name}_\d+\.bmp", f)
 
-    frames_name = [
-        f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f)) and is_frame(f)
-    ]
-
-    if frames_name == []:
-        print("no such frames in this directory")
-        sys.exit(1)
-
     def sort_frame(f:str):
         m = re.match(rf"{frame_name}_(\d+)\.bmp", f)
         return int(m.group(1))
 
-    frames_name_sorted = sorted(frames_name,key=sort_frame)
+    def frame_check(dir_path):
+        frames_name = [
+            f for f in os.listdir(dir_path) if os.path.isfile(os.path.join(dir_path, f)) and is_frame(f)
+        ]
+        if frames_name == []:
+            print("no such frames in this directory")
+            sys.exit(1)
+        
+        frames_name_sorted = sorted(frames_name,key=sort_frame)
+        return frames_name_sorted
 
     cv2.namedWindow("image")
 
-    frames = [cv2.imread(rf"{dir_path}/{f}") for f in frames_name_sorted]
+    frames = [cv2.imread(rf"{dir_path}/{f}") for f in frame_check(dir_path)]
 
     wait_ms = int(1000//speed)
     for f in frames:
@@ -85,17 +86,20 @@ def main(input_path, speed=60, dest=""):
         else:
             h,w,c = frames[0].shape
             fourcc = cv2.VideoWriter.fourcc('m', 'p', '4', 'v')
-            video  = cv2.VideoWriter(f"{name}.mp4", fourcc, speed, (w, h))
+            video  = cv2.VideoWriter("temp.mp4", fourcc, speed, (w, h))
 
             for frame in frames:
                 video.write(frame)
             
             video.release()
 
+            if ext == ".mp4":
+                os.rename("temp.mp4", f"{name}.mp4")
+
             if ext == ".gif":
-                clip = VideoFileClip(f"{name}.mp4")
+                clip = VideoFileClip("temp.mp4")
                 clip.write_gif(f"{name}.gif", fps=30)
-                os.remove(f"{name}.mp4")
+                os.remove("temp.mp4")
 
 if __name__ == "__main__":
     main()
